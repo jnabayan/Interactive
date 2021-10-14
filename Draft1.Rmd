@@ -1,0 +1,103 @@
+---
+title: "Interactive"
+output: html_document
+---
+
+
+```{r}
+library(leaflet)
+library(sf)
+library(tidyverse)
+library(tidycensus)
+library(ggthemes)
+library(ggspatial)
+library(htmlwidgets)
+library(tidytransit)
+```
+
+```{r}
+LA <- get_decennial(geography = "block",
+                          state = "CA", county = "Los Angeles",
+                          year = 2010,
+                          output = "wide",
+                          variables = c(tot_pop = 'P008001',
+                                        bl_pop = 'P008004'),
+                          geometry = TRUE)
+```
+
+
+```{r}
+LA <- LA %>%
+  mutate(pct_Black = bl_pop / tot_pop) %>%
+  filter(tot_pop > 0)
+```
+
+```{r}
+CA_state_plane <- "+proj=lcc +lat_1=34.03333333333333 +lat_2=35.46666666666667 +lat_0=33.5 +lon_0=-118 +x_0=2000000 +y_0=500000 +ellps=GRS80 +units=m +no_defs"
+
+ggplot(LA) +
+  annotation_map_tile(zoomin = 0, progress = "none", type = "stamenbw") +
+  geom_sf(color = NA, aes(fill = pct_Black), alpha = 0.7) +
+  coord_sf(crs = CA_state_plane) +
+  scale_fill_continuous(low="cornsilk", high="darkgreen", 
+                       na.value=NA,
+                       name = "Percent of population\nidentifying as Black alone",
+                       breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1),
+                       labels = c("0", "20%", "40%", "60%", "80%", "100%")) +
+  theme_void() 
+```
+
+
+```{r}
+CA_Black_palette <- colorNumeric(c("purple", "green"), LA$pct_Black)
+
+Black_map1 <- leaflet(LA) %>%
+  addProviderTiles("Stamen.TonerLite") %>%
+  addPolygons(stroke = FALSE, fillOpacity = 0.7,
+    color = ~CA_Black_palette(pct_Black)) %>%
+  addLegend("bottomright", pal = CA_Black_palette, values = ~pct_Black,
+    title = "Percent of population<br/>identifying as Black alone",
+    labFormat = labelFormat(suffix = "%",
+                            transform = function(x) 100 * x),
+    opacity = 1)
+
+Black_map1
+```
+
+
+```{r}
+Black_map2 <- leaflet(LA) %>%
+  addProviderTiles("Stamen.TonerLite") %>%
+  addPolygons(color = ~CA_Black_palette(pct_Black), stroke = FALSE, fillOpacity = 0.7,
+              highlightOptions = highlightOptions(fillColor = "darkorange", fillOpacity = 0.9),
+              label = "This is a label",
+              popup = "This is a popup") %>%
+    addLegend("bottomright", pal = CA_Black_palette, values = ~pct_Black,
+    title = "Percent of population<br/>identifying as Black alone",
+    labFormat = labelFormat(suffix = "%",
+                            transform = function(x) 100 * x),
+    opacity = 1)
+
+Black_map2
+```
+
+
+```{r}
+Black_map3 <- leaflet(LA) %>%
+  addProviderTiles("Stamen.TonerLite") %>%
+  addPolygons(color = ~CA_Black_palette(pct_Black), stroke = FALSE, fillOpacity = 0.7,
+              highlightOptions = highlightOptions(fillColor = "darkorange", fillOpacity = 0.9),
+              label = LA$NAME,
+              popup = paste("Total population: ", LA$tot_pop, "<br/>",
+                            "Black population: ", LA$bl_pop, " (", 
+                            round(LA$pct_Black * 100, 1), "%)", sep = "")) %>%
+    addLegend("bottomright", pal = CA_Black_palette, values = ~pct_Black,
+    title = "Percent of population<br/>identifying as Black alone",
+    labFormat = labelFormat(suffix = "%",
+                            transform = function(x) 100 * x),
+    opacity = 1)
+
+Black_map3
+```
+
+
